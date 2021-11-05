@@ -1,2 +1,2 @@
-# React-Moovify
+# React-Moviefy
 Created with CodeSandbox
