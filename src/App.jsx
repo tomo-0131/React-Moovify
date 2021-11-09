@@ -1,68 +1,152 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import axios from "axios";
 import "./styles.css";
+import Button from '@mui/material/Button';
+import Input from '@mui/material/Input';
+import Paper from '@mui/material/Paper';
+import InputBase from '@mui/material/InputBase';
+import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
+import MenuIcon from '@mui/icons-material/Menu';
+import SearchIcon from '@mui/icons-material/Search';
+import DirectionsIcon from '@mui/icons-material/Directions';
+import AppBar from '@mui/material/AppBar';
+import Box from '@mui/material/Box';
+import Toolbar from '@mui/material/Toolbar';
+import Typography from '@mui/material/Typography';
+import Badge from '@mui/material/Badge';
+import MenuItem from '@mui/material/MenuItem';
+import Menu from '@mui/material/Menu';
+import AccountCircle from '@mui/icons-material/AccountCircle';
+import MailIcon from '@mui/icons-material/Mail';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import MoreIcon from '@mui/icons-material/MoreVert';
+import Grid from '@mui/material/Grid';
+import Card from '@mui/material/Card';
+import CardActions from '@mui/material/CardActions';
+import CardContent from '@mui/material/CardContent';
+import { DescriptionModal } from './components/DescriptionModal'
+import { InputText } from "./components/InputText";
+import { MovieList } from "./components/MovieList";
+import { BookList } from "./components/BookList";
+import dig from 'object-dig';
+import { AuthProvider } from "./providers/AuthProvider";
+import { AuthContext } from "./providers/AuthProvider";
+import { logOut, signInWithGoogle } from "./server/firebase";
+import LogoutIcon from '@mui/icons-material/Logout';
+import LoginIcon from '@mui/icons-material/Login';
+const apikey = process.env.REACT_APP_MOVIE_TOKEN;
+
 
 export default function App() {
-  const [searchText, setSearchText] = useState("");
-  const [movies, setMovies] = useState([]);
+
+  // const [movies, setMovies] = useState([]);
+  const [ books, setBooks ] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage ] = useState('');
+  const [searchText, setSearchText] = useState("")
+  const currentUser = useContext(AuthContext);
 
-  const handleChange = (e) => {
-    setSearchText(e.target.value);
-  };
+  // const searchMovie = (searchText) => {
+  //   setIsLoading(true);
+  //   setErrorMessage(null)
+  //   axios
+  //     .get(
+  //       `https://www.omdbapi.com/?s=${searchText}&apikey=${apikey}`
+  //     )
+  //     .then((res)=> {
+  //       if(res.data.Response === "True") {
+  //         setMovies(res.data.Search)
+  //         console.log(res.data.Search)
+  //         setIsLoading(false)
+  //       } else {
+  //         setErrorMessage("エラーが発生しました")
+  //         setIsLoading(false)
+  //       }
+  //     })
+  // };
+  // ログイン・ログアウト表示
+  const buttonRender = () => {
+    let buttonDom
+    if( dig(currentUser, 'currentUser', 'uid') ) {
+      buttonDom = <Button  style={{ color: 'white' }} startIcon={<LogoutIcon />} onClick={logOut}>LOGOUT</Button>
+    } else {
+      buttonDom = <Button  style={{ color: 'white' }} startIcon={<LoginIcon />} onClick={signInWithGoogle}>LOGIN</Button>
+    }
+    return buttonDom
+  }
 
-  const searchMovie = async (searchText) => {
+  const bookRender = () => {
+    let bookDom
+    if(dig(currentUser, 'currentUser', 'uid')) {
+      bookDom =
+      <div>
+        <Paper component="form" sx={{ p: '5px 4px', display: 'flex' }}>
+          <InputText
+            searchRakutenBooks={searchRakutenBooks}
+          />
+        </Paper>
+        <div className="books">
+          <div className="books">
+            {isLoading && !errorMessage ? (
+              <span>Loading...</span>
+            ) : errorMessage ? (
+              <div>{ errorMessage }</div>
+            ) : (
+              books.map((book, index) => (
+                <BookList key={`${index} - ${book.Item.title}`} book={book} />
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    } else {
+      return null
+    }
+    return bookDom
+  }
+
+  // 楽天API 書籍検索
+  const searchRakutenBooks = (searchText) => {
     setIsLoading(true);
-    await axios
-      .get(
-        `https://api.themoviedb.org/3/search/movie?api_key=${process.env.MOVIE_TOKEN}&query=${searchText}`
-      )
-      .then((res) =>
-        setTimeout(() => {
-          const data = res.data.results;
-          setMovies(data);
-          setIsLoading(false);
-        }, 800)
-      );
-  };
+    setErrorMessage(null);
+    const encodeUrl = encodeURI(searchText)
+    console.log(encodeUrl)
+    axios.get(`https://app.rakuten.co.jp/services/api/BooksBook/Search/20130522?applicationId=1086884900424216159&title=${encodeUrl}&format=json`)
+    .then((res)=>{
+      if(res.data) {
+        setBooks(res.data.Items)
+        console.log(res.data)
+        setIsLoading(false);
+      } else {
+        setErrorMessage("エラーが発生しました")
+        setIsLoading(false)
+      }
+    })
+  }
 
   return (
     <>
-      <div className="inputArea">
-        <h1 className="hero is-dark" data-aos="flip-left">
-          MOOVIFY
-        </h1>
-        <p>映画を検索しましょう！</p>
-        <input
-          placeholder="映画名で検索"
-          type="text"
-          value={searchText}
-          onChange={handleChange}
-        />
-        <button className="button" onClick={() => searchMovie(searchText)}>
-          SEARCH
-        </button>
-      </div>
-      <div className="movieArea">
-        <div data-aos="fade-up">
-          <h1 className="hero is-dark">検索結果</h1>
-          {isLoading === true && <p>Loading...</p>}
-
-          {movies.map((item) => (
-            <div className="list" key="item" data-aos="fade-up-right">
-              <h1>{item.title}</h1>
-              <img
-                src={
-                  "https://www.themoviedb.org/t/p/w94_and_h141_bestv2" +
-                  `${item.poster_path}`
-                }
-                alt="映画ポスター"
-              />
-              <h4>{item.release_date.slice(0, 4)}</h4>
-            </div>
-          ))}
-        </div>
-      </div>
+      <Box sx={{ flexGrow: 1 }}>
+        <AppBar position="static" color="info">
+          <Toolbar>
+            <IconButton
+              size="large"
+              edge="start"
+              color="inherit"
+              aria-label="menu"
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+              BOOKIFY
+            </Typography>
+            <div>{ buttonRender() }</div>
+          </Toolbar>
+        </AppBar>
+      </Box>
+      {bookRender()}
     </>
   );
 }
